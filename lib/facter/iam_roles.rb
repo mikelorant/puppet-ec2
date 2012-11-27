@@ -17,7 +17,7 @@ if response.code == "200"
 
   iam_roles.each do |role_name, role_credentials|
     role_credentials.each do |k, v|
-      Facter.add("aws_iam_role_%s_%s" % [role_name, k]) do
+      Facter.add("ec2_iam_role_%s_%s" % [role_name, k]) do
         setcode do
           v
         end
@@ -34,7 +34,7 @@ if response.code == "200"
       iam_roles.first[1]["SecretAccessKey"]
     end
   end
-  Facter.add("aws_iam_roles") do
+  Facter.add("ec2_iam_roles") do
     setcode do
       iam_roles.keys.join(",")
     end
