@@ -10,7 +10,7 @@ response = http.request(Net::HTTP::Get.new(uri.request_uri))
 
 if response.code == "200"
   iam_roles_names = response.body.split
-  iam_roles = iam_roles.names.reduce(Hash.new) do |h, role|
+  iam_roles = iam_roles_names.reduce(Hash.new) do |h, role|
     h[role] = JSON.load(Net::HTTP.get(URI.parse(EC2_IAM_URL + role)))
     h
   end
