@@ -12,7 +12,7 @@ class EC2Facts
 
   # Issue an HTTP Get to the metadata service and yield the block if get is successful
   def http_get(request_uri)
-    response = http.get(Net::HTTP::Get.new(uri.request_uri + item_name))
+    response = http.get(Net::HTTP::Get.new(request_uri))
     yield response.body if response.code == "200"
   end
 
