@@ -1,18 +1,41 @@
 require 'facter'
 require 'aws-sdk'
 require 'yaml'
-require 'net/http'
+require 'open-uri'
 
 EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/"
 begin
-  config = YAML.load_file("/etc/puppet/aws.yaml")
+  aws_region = open(EC2_METADATA_URL + "/placement/availability-zone").read[/([a-z]{2}-(?:west|east|north|south)-\d)[a-z]/,1]
+  cfn = AWS::CloudFormation.new(:cloud_formation_endpoint => "cloudformation.#{region}.amazonaws.com")
 
-  region = Net::HTTP.get(URI.parse(EC2_METADATA_URL + "placement/availability-zone")).sub(/^([a-z]{2}-[a-z]+-\d)[a-z]/, '\1')
-  AWS.config(:credential_provider => AWS::Core::CredentialProviders::EC2Provider.new, 
-            :cloud_formation_endpoint => "cloudformation.#{region}.amazonaws.com")
-  cfn = AWS::CloudFormation.new
+  ec2_conn = AWS::EC2.new.regions[aws_region]
+  instance_tags = ec2_conn.instances[instance_id].tags
+  stack_name = instance_tags["aws:cloudformation:stack-name"]
+  resource_id = instance_tags["aws:cloudformation:logical-id"]
+  stack = cfn.stacks[stack_name]
+  resource = stack.resources[resource_id]
 
-  JSON.load(cfn.stacks[config["stack_name"]].resources[config["resource_id"]].metadata).each do |namespace, items|
+  Facter.add("cfn_stack_name") do
+    setcode do
+      stack_name
+    end
+  end
+  Facter.add("cfn_stack_id") do
+    setcode do
+      stack_id
+    end
+  end
+  Facter.add("cfn_logical_resource_id") do
+    setcode do
+      resource.logical_resource_id
+    end
+  end
+  Facter.add("cfn_physical_resource_id") do
+    setcode do
+      resource.physical_resource_id
+    end
+  end
+  JSON.load(resource.metadata).each do |namespace, items|
     items.each do |key, value|
       Facter.add("cfn_%s_%s" % [namespace, key]) do
         setcode do
