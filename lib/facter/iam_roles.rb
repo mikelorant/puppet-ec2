@@ -2,8 +2,8 @@ require 'net/http'
 require 'facter'
 require 'json'
 
-EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/"
-EC2_IAM_URL = EC2_METADATA_URL + "iam/security-credentials/"
+EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/" unless Module.const_defined?(:EC2_METADATA_URL)
+EC2_IAM_URL = EC2_METADATA_URL + "iam/security-credentials/" unless Module.const_defined?(:EC2_IAM_URL)
 uri = URI.parse(EC2_IAM_URL)
 http = Net::HTTP.new(uri.host, uri.port)
 response = http.request(Net::HTTP::Get.new(uri.request_uri))

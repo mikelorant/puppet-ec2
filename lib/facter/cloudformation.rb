@@ -1,19 +1,22 @@
 require 'facter'
-require 'aws-sdk'
+require 'aws-sdk-core'
 require 'yaml'
 require 'open-uri'
 
-EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/"
+EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/" unless Module.const_defined?(:EC2_METADATA_URL)
 begin
-  aws_region = open(EC2_METADATA_URL + "/placement/availability-zone").read[/([a-z]{2}-(?:west|east|north|south)-\d)[a-z]/,1]
-  cfn = AWS::CloudFormation.new(:cloud_formation_endpoint => "cloudformation.#{region}.amazonaws.com")
+  region = open(EC2_METADATA_URL + "placement/availability-zone").read.chop
+  instance_id = open(EC2_METADATA_URL + "/instance-id").read
 
-  ec2_conn = AWS::EC2.new.regions[aws_region]
-  instance_tags = ec2_conn.instances[instance_id].tags
-  stack_name = instance_tags["aws:cloudformation:stack-name"]
-  resource_id = instance_tags["aws:cloudformation:logical-id"]
-  stack = cfn.stacks[stack_name]
-  resource = stack.resources[resource_id]
+  cfn = Aws::CloudFormation.new(:region => region)
+  ec2 = Aws::EC2.new(:region => region)
+
+  instance_tags = ec2.describe_instances(instance_ids: [instance_id]).reservations.first.instances.first.tags
+  stack_name = instance_tags.select { |tag| tag.key == 'aws:cloudformation:stack-name' }.first.value
+  stack_id = instance_tags.select { |tag| tag.key == 'aws:cloudformation:stack-id' }.first.value
+  resource_id = instance_tags.select { |tag| tag.key == 'aws:cloudformation:logical-id' }.first.value
+  stack = cfn.describe_stack_resource(stack_name: stack_name, logical_resource_id: resource_id)
+  resource = stack.stack_resource_detail
 
   Facter.add("cfn_stack_name") do
     setcode do
@@ -35,11 +38,14 @@ begin
       resource.physical_resource_id
     end
   end
-  JSON.load(resource.metadata).each do |namespace, items|
-    items.each do |key, value|
-      Facter.add("cfn_%s_%s" % [namespace, key]) do
-        setcode do
-          value
+
+  if resource.metadata
+    JSON.load(resource.metadata).each do |namespace, items|
+      items.each do |key, value|
+        Facter.add("cfn_%s_%s" % [namespace, key]) do
+          setcode do
+            value
+          end
         end
       end
     end

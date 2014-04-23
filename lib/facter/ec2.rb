@@ -2,7 +2,7 @@ require 'net/http'
 require 'facter'
 
 class EC2Facts
-  EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/"
+  EC2_METADATA_URL="http://169.254.169.254/latest/meta-data/" unless Module.const_defined?(:EC2_METADATA_URL)
   attr_reader :http, :uri
 
   def initialize
