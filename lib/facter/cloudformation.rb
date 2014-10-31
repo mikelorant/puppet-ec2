@@ -8,8 +8,8 @@ begin
   region = open(EC2_METADATA_URL + "placement/availability-zone").read.chop
   instance_id = open(EC2_METADATA_URL + "/instance-id").read
 
-  cfn = Aws::CloudFormation.new(:region => region)
-  ec2 = Aws::EC2.new(:region => region)
+  cfn = Aws::CloudFormation::Client.new(:region => region)
+  ec2 = Aws::EC2::Client.new(:region => region)
 
   instance_tags = ec2.describe_instances(instance_ids: [instance_id]).reservations.first.instances.first.tags
   stack_name = instance_tags.select { |tag| tag.key == 'aws:cloudformation:stack-name' }.first.value
@@ -17,6 +17,7 @@ begin
   resource_id = instance_tags.select { |tag| tag.key == 'aws:cloudformation:logical-id' }.first.value
   stack = cfn.describe_stack_resource(stack_name: stack_name, logical_resource_id: resource_id)
   resource = stack.stack_resource_detail
+  stack_info = cfn.describe_stacks({ stack_name: stack_name }).stacks.first
 
   Facter.add("cfn_stack_name") do
     setcode do
@@ -47,6 +48,14 @@ begin
             value
           end
         end
+      end
+    end
+  end
+
+  stack_info.parameters.each do |param|
+    Facter.add("cfn_stack_param_%s" % param.parameter_key.downcase) do
+      setcode do
+        param.parameter_value
       end
     end
   end
